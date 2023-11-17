@@ -123,7 +123,7 @@ EOF
 
 # reset
 arkeod tendermint unsafe-reset-all --home $HOME/.arkeo --keep-addr-book 
-curl https://snapshots-testnet.nodejumper.io/arkeonetwork-testnet/arkeo_2023-11-16.tar.lz4 | lz4 -dc - | tar -xf - -C $HOME/.arkeo
+curl https://snapshots-testnet.nodejumper.io/arkeonetwork-testnet/arkeo_2023-11-17.tar.lz4 | lz4 -dc - | tar -xf - -C $HOME/.arkeo
 
 # start service
 sudo systemctl daemon-reload
