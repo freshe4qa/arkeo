@@ -81,7 +81,7 @@ curl -s http://seed.arkeo.network:26657/genesis | jq '.result.genesis' > $HOME/.
 curl -s https://snapshots-testnet.nodejumper.io/arkeonetwork-testnet/addrbook.json > $HOME/.arkeo/config/addrbook.json
 
 # set minimum gas price
-sed -i -e "s|^minimum-gas-prices *=.*|minimum-gas-prices = \"0.0001unibi\"|" $HOME/.arkeo/config/app.toml
+sed -i -e "s|^minimum-gas-prices *=.*|minimum-gas-prices = \"0.0001uarkeo\"|" $HOME/.arkeo/config/app.toml
 
 # set peers and seeds
 SEEDS="20e1000e88125698264454a884812746c2eb4807@seeds.lavenderfive.com:22856"
