@@ -51,23 +51,18 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install curl build-essential git wget jq make gcc tmux chrony -y
 
 # install go
-if ! [ -x "$(command -v go)" ]; then
-ver="1.19" && \
-wget "https://golang.org/dl/go$ver.linux-amd64.tar.gz" && \
-sudo rm -rf /usr/local/go && \
-sudo tar -C /usr/local -xzf "go$ver.linux-amd64.tar.gz" && \
-rm "go$ver.linux-amd64.tar.gz" && \
-echo "export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin" >> $HOME/.bash_profile && \
-source $HOME/.bash_profile && \
-go version
-fi
+sudo rm -rf /usr/local/go
+curl -L https://go.dev/dl/go1.21.6.linux-amd64.tar.gz | sudo tar -xzf - -C /usr/local
+echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> $HOME/.bash_profile
+source .bash_profile
 
 # download binary
 cd $HOME
-git clone https://github.com/arkeonetwork/arkeo && cd arkeo
-wget https://share101.utsa.tech/arkeo/arkeod
+mkdir -p /root/go/bin/
+wget https://ss-t.arkeo.nodestake.org/arkeod
 chmod +x arkeod
-mv arkeod /usr/local/bin/arkeod
+mv arkeod /root/go/bin/
+arkeod version
 
 # config
 arkeod config chain-id $ARKEO_CHAIN_ID
@@ -77,15 +72,15 @@ arkeod config keyring-backend test
 arkeod init $NODENAME --chain-id $ARKEO_CHAIN_ID
 
 # download genesis and addrbook
-curl -s http://seed.arkeo.network:26657/genesis | jq '.result.genesis' > $HOME/.arkeo/config/genesis.json
-curl -s https://snapshots-testnet.nodejumper.io/arkeonetwork-testnet/addrbook.json > $HOME/.arkeo/config/addrbook.json
+curl -Ls https://ss-t.arkeo.nodestake.org/genesis.json > $HOME/.arkeo/config/genesis.json
+curl -Ls https://ss-t.arkeo.nodestake.org/addrbook.json > $HOME/.arkeo/config/addrbook.json
 
 # set minimum gas price
 sed -i -e "s|^minimum-gas-prices *=.*|minimum-gas-prices = \"0.0001uarkeo\"|" $HOME/.arkeo/config/app.toml
 
 # set peers and seeds
-SEEDS="20e1000e88125698264454a884812746c2eb4807@seeds.lavenderfive.com:22856"
-PEERS="d1ade0f7afb6d0e99dcfd3a8d1373a03d459adb8@158.220.91.214:15756,41e9f8771e28a5b51d6a99529ccf55db19f34abe@5.161.70.240:26656,7139c267a8b8bb03cd2cbf0cf7092ffd1a475ef7@65.109.103.140:15756,1a86a2a0593f29180d4eb3c52b5863bf84e708dc@88.198.52.46:22856,25a9af68f987e254e50d6d7e6a1e68a5a40c1b7c@65.109.92.148:60556"
+SEEDS="364ff02df0007a498eca4039688c46fd4190e771@rpc-t.arkeo.nodestake.org:666"
+PEERS="beeef4607ebbb98f5b2293b6407765067a73e781@54.144.10.49:26656,22ae7b9bd6aed0b69e4599885529ed84a577bfc8@65.109.23.114:22856,78820c26ac2b680a610df13fc651d2d09d18bc48@65.109.57.180:26656,a25610b1ed8f47ab662b17921cb9cafbcfb1e012@142.132.194.124:11304"
 sed -i -e "s/^seeds *=.*/seeds = \"$SEEDS\"/; s/^persistent_peers *=.*/persistent_peers = \"$PEERS\"/" $HOME/.arkeo/config/config.toml
 
 # disable indexing
@@ -123,7 +118,8 @@ EOF
 
 # reset
 arkeod tendermint unsafe-reset-all --home $HOME/.arkeo --keep-addr-book 
-curl https://snapshots-testnet.nodejumper.io/arkeonetwork-testnet/arkeonetwork-testnet_latest.tar.lz4 | lz4 -dc - | tar -xf - -C $HOME/.arkeo
+SNAP_NAME=$(curl -s https://ss-t.arkeo.nodestake.org/ | egrep -o ">20.*\.tar.lz4" | tr -d ">")
+curl -o - -L https://ss-t.arkeo.nodestake.org/${SNAP_NAME}  | lz4 -c -d - | tar -x -C $HOME/.arkeo
 
 # start service
 sudo systemctl daemon-reload
