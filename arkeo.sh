@@ -57,12 +57,10 @@ echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> $HOME/.bash_profile
 source .bash_profile
 
 # download binary
-cd $HOME
-mkdir -p /root/go/bin/
-wget https://ss-t.arkeo.nodestake.org/arkeod
-chmod +x arkeod
-mv arkeod /root/go/bin/
-arkeod version
+cd $HOME && git clone https://github.com/arkeonetwork/arkeo
+cd arkeo
+git checkout master
+TAG=testnet make install
 
 # config
 arkeod config chain-id $ARKEO_CHAIN_ID
