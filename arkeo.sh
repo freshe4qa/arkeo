@@ -51,23 +51,19 @@ sudo apt update && sudo apt upgrade -y
 apt install curl iptables build-essential git wget jq make gcc nano tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip libleveldb-dev lz4 -y
 
 # install go
-sudo rm -rf /usr/local/go
-curl -L https://go.dev/dl/go1.22.7.linux-amd64.tar.gz | sudo tar -xzf - -C /usr/local
-echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> $HOME/.profile
-source .profile
+ver="1.20.3" && \
+wget "https://golang.org/dl/go$ver.linux-amd64.tar.gz" && \
+sudo rm -rf /usr/local/go && \
+sudo tar -C /usr/local -xzf "go$ver.linux-amd64.tar.gz" && \
+rm "go$ver.linux-amd64.tar.gz" && \
+echo "export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin" >> $HOME/.bash_profile && \
+source $HOME/.bash_profile && \
+go version
 
 # download binary
-cd $HOME && git clone https://github.com/arkeonetwork/arkeo
-cd arkeo
+git clone https://github.com/arkeonetwork/arkeo && cd arkeo
 git checkout master
 TAG=testnet make install
-
-# Prepare cosmovisor directories
-mkdir -p $HOME/.arkeo/cosmovisor/genesis/bin
-ln -s $HOME/.arkeo/cosmovisor/genesis $HOME/.arkeo/cosmovisor/current -f
-
-# Copy binary to cosmovisor directory
-cp $(which arkeod) $HOME/.arkeo/cosmovisor/genesis/bin
 
 # config
 arkeod config chain-id $ARKEO_CHAIN_ID
@@ -106,25 +102,19 @@ sed -i "s/snapshot-interval *=.*/snapshot-interval = 0/g" $HOME/.arkeo/config/ap
 # enable prometheus
 sed -i -e "s/prometheus = false/prometheus = true/" $HOME/.arkeo/config/config.toml
 
-# Install Cosmovisor
-go install cosmossdk.io/tools/cosmovisor/cmd/cosmovisor@v1.6.0
-
 # create service
-sudo tee /etc/systemd/system/arkeod.service > /dev/null << EOF
+tee /etc/systemd/system/arkeod.service > /dev/null <<EOF
 [Unit]
-Description=Arkeo Network node service
+Description=arkeod
 After=network-online.target
+
 [Service]
 User=$USER
-WorkingDirectory=$HOME/.arkeo
-ExecStart=$(which cosmovisor) run start
+ExecStart=$(which arkeod) start
 Restart=on-failure
-RestartSec=5
+RestartSec=3
 LimitNOFILE=65535
-Environment="DAEMON_HOME=$HOME/.arkeo"
-Environment="DAEMON_NAME=arkeod"
-Environment="UNSAFE_SKIP_BACKUP=true"
-Environment="DAEMON_ALLOW_DOWNLOAD_BINARIES=true"
+
 [Install]
 WantedBy=multi-user.target
 EOF
