@@ -1,0 +1,128 @@
+# Manual node setup
+If you want to setup fullnode manually follow the steps below
+
+## Setting up vars
+Here you have to put name of your moniker (validator) that will be visible in explorer
+```
+NODENAME=<YOUR_MONIKER_NAME>
+```
+
+Save and import variables into system
+```
+echo "export NODENAME=$NODENAME" >> $HOME/.bash_profile
+if [ ! $WALLET ]; then
+	echo "export WALLET=wallet" >> $HOME/.bash_profile
+fi
+echo "export ARKEO_CHAIN_ID=arkeo-testnet-3" >> $HOME/.bash_profile
+source $HOME/.bash_profile
+```
+
+## Update packages
+```
+sudo apt update && sudo apt upgrade -y
+```
+
+## Install dependencies
+```
+apt install curl iptables build-essential git wget jq make gcc nano tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip libleveldb-dev lz4 -y
+```
+
+## Install go
+```
+sudo rm -rf /usr/local/go
+curl -L https://go.dev/dl/go1.22.7.linux-amd64.tar.gz | sudo tar -xzf - -C /usr/local
+echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> $HOME/.profile
+source .profile
+```
+
+## Download and build binaries
+```
+cd $HOME && git clone https://github.com/arkeonetwork/arkeo.git
+cd arkeo
+git checkout master
+TAG=testnet make install
+```
+
+## Init app
+```
+arkeod config chain-id arkeo-testnet-3
+arkeod config keyring-backend test
+arkeod init $NODENAME --chain-id arkeo-testnet-3
+```
+
+## Download genesis and addrbook
+```
+curl -L https://snapshots-testnet.nodejumper.io/arkeo/genesis.json > $HOME/.arkeo/config/genesis.json
+curl -L https://snapshots-testnet.nodejumper.io/arkeo/addrbook.json > $HOME/.arkeo/config/addrbook.json
+```
+
+## Set seeds and peers
+```
+SEEDS="9dfa5f2d19c1174baf5e597965394269e654f9b7@seed31.innovationtheory.com:26656,bb761c984bd990f3055f412917396754cd22af7a@validator31.innovationtheory.com:26656"
+PEERS="81bf9e7272961510e36213466e2f1df565a92e72@89.58.13.159:28656,2c09e0c11d99eb189b5134dd85f035959acbdd26@158.220.108.120:14056,e6b058d1d6be000d67b87e9d11cb0de1bba1e477@65.109.65.248:42656,6610af0d76fda15346ac89a60161971931e5c7f8@[2a01:4f8:13b:27ea::2]:22856,6d0ef3b81afe0968c8b2ed72bb8dc9f5d38cd514@[2a01:4f9:5a:2248::2]:14056,2cab519022ff8f791b70be7310efefb0fce52f63@[2001:41d0:700:545e::]:26656,12d1156d37b3e02f79c85ad6fe5bf97903001324@[2a01:4f8:192:6223::2]:13656,0370e95d59bdfffb15f08749462c960574608451@[2a01:4f8:221:4267::2]:26656,294948409ba34f3cddec95b63fc0e58eaef3bf7f@65.108.232.168:48656,ce6d66ae03900c60c55210f4ac82af61b8122140@[2a03:cfc0:8000:28::c122:d450]:55656,d579b42752617069d97c26722c0b44e3ec011e8a@65.109.92.241:10356,875ab84707649db31d7c39977fba355b22ec835f@185.16.39.125:28656,744794499be64aeff4fc01d5f0f7770e951a8d63@88.198.46.55:14056,4daa32def4f99706f5e621250096be65af1ccdf3@[2a01:4f9:1a:a6af::2]:22856,b40de58ac548aeb41e37b39b0db4f339b303cd7f@[2a01:4f8:10a:21de::2]:21656,4b86b88dc68371d733d91ca411dfe4fa03ccbd00@158.220.108.184:14056,9950a7acaaf27b0c17b89e3e62681e6095fcf5fc@37.252.184.241:26656,2e16695859392ac1be24b3225fc270875a78d6e8@[2a01:4f8:191:10d5::157]:26656,9acdc6977fe1f8fdaacc46bcc13a72371f24b437@65.108.71.92:55926,1c88bcab0f6e4b3cdfa5f9c720209bed34ad6466@[2a01:4f8:262:121c::2]:11656"
+sed -i -e "s/^seeds *=.*/seeds = \"$SEEDS\"/; s/^persistent_peers *=.*/persistent_peers = \"$PEERS\"/" $HOME/.arkeo/config/config.toml
+```
+
+## Config pruning
+```
+# disable indexing
+indexer="null"
+sed -i -e "s/^indexer *=.*/indexer = \"$indexer\"/" $HOME/.arkeo/config/config.toml
+
+# config pruning
+pruning="custom"
+pruning_keep_recent="100"
+pruning_keep_every="0"
+pruning_interval="10"
+sed -i -e "s/^pruning *=.*/pruning = \"$pruning\"/" $HOME/.arkeo/config/app.toml
+sed -i -e "s/^pruning-keep-recent *=.*/pruning-keep-recent = \"$pruning_keep_recent\"/" $HOME/.arkeo/config/app.toml
+sed -i -e "s/^pruning-keep-every *=.*/pruning-keep-every = \"$pruning_keep_every\"/" $HOME/.arkeo/config/app.toml
+sed -i -e "s/^pruning-interval *=.*/pruning-interval = \"$pruning_interval\"/" $HOME/.arkeo/config/app.toml
+sed -i "s/snapshot-interval *=.*/snapshot-interval = 0/g" $HOME/.arkeo/config/app.toml
+```
+
+## Set minimum gas price and timeout commit
+```
+sed -i -e "s|^minimum-gas-prices *=.*|minimum-gas-prices = \"0.01uarkeo\"|" $HOME/.arkeo/config/app.toml
+```
+
+## Enable prometheus
+```
+sed -i -e "s/prometheus = false/prometheus = true/" $HOME/.arkeo/config/config.toml
+```
+
+# create service
+```
+sudo tee /etc/systemd/system/arkeod.service > /dev/null << EOF
+[Unit]
+Description=Arkeo node service
+After=network-online.target
+[Service]
+User=$USER
+ExecStart=$(which arkeod) start
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=65535
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+# reset
+```
+arkeod tendermint unsafe-reset-all --home $HOME/.arkeo --keep-addr-book
+```
+```
+curl https://snapshots-testnet.nodejumper.io/arkeo/arkeo_latest.tar.lz4 | lz4 -dc - | tar -xf - -C $HOME/.arkeo
+```
+
+# start service
+```
+sudo systemctl daemon-reload
+```
+```
+sudo systemctl enable arkeod
+```
+```
+sudo systemctl restart arkeod
+```
